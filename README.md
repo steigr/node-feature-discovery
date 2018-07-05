@@ -118,6 +118,7 @@ the only label value published for features is the string `"true"`._
   "node.alpha.kubernetes-incubator.io/nfd-cpu-<feature-name>": "true",
   "node.alpha.kubernetes-incubator.io/nfd-cpuid-<feature-name>": "true",
   "node.alpha.kubernetes-incubator.io/nfd-iommu-<feature-name>": "true",
+  "node.alpha.kubernetes-incubator.io/nfd-kernel-config.<option-name>": "true",
   "node.alpha.kubernetes-incubator.io/nfd-kernel-version.<version component>": "<version number>",
   "node.alpha.kubernetes-incubator.io/nfd-memory-<feature-name>": "true",
   "node.alpha.kubernetes-incubator.io/nfd-network-<feature-name>": "true",
@@ -184,12 +185,16 @@ not enabled) as reported by the `cpuid` instruction.
 
 ### Kernel Features
 
-| Feature | Attribute | Description                                            |
-| ------- | --------- | ------------------------------------------------------ |
-| version | full      | Full kernel version as reported by `/proc/sys/kernel/osrelease` (e.g. '4.5.6-7-g123abcde')
-| <br>    | major     | First component of the kernel version (e.g. '4')
-| <br>    | minor     | Second component of the kernel version (e.g. '5')
-| <br>    | revision  | Third component of the kernel version (e.g. '6')
+| Feature | Attribute   | Description                                          |
+| ------- | ----------- | ---------------------------------------------------- |
+| config  | NO_HZ       | Kernel config option is enabled
+| <br>    | NO_HZ_FULL  |
+| <br>    | NO_HZ_IDLE  |
+| <br>    | PREEMPT     |
+| version | full        | Full kernel version as reported by `/proc/sys/kernel/osrelease` (e.g. '4.5.6-7-g123abcde')
+| <br>    | major       | First component of the kernel version (e.g. '4')
+| <br>    | minor       | Second component of the kernel version (e.g. '5')
+| <br>    | revision    | Third component of the kernel version (e.g. '6')
 
 ### Memory Features
 

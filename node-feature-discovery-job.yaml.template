@@ -28,6 +28,9 @@ spec:
             - containerPort: 7156
               hostPort: 7156
           volumeMounts:
+            - name: host-boot
+              mountPath: "/host-boot"
+              readOnly: true
             - name: host-os-release
               mountPath: "/host-etc/os-release"
               readOnly: true
@@ -35,6 +38,9 @@ spec:
               mountPath: "/host-sys"
       restartPolicy: Never
       volumes:
+        - name: host-boot
+          hostPath:
+            path: "/boot"
         - name: host-os-release
           hostPath:
             path: "/etc/os-release"
