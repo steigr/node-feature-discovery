@@ -19,6 +19,7 @@ import (
 	"github.com/kubernetes-incubator/node-feature-discovery/source/kernel"
 	"github.com/kubernetes-incubator/node-feature-discovery/source/memory"
 	"github.com/kubernetes-incubator/node-feature-discovery/source/network"
+	os_features "github.com/kubernetes-incubator/node-feature-discovery/source/os"
 	"github.com/kubernetes-incubator/node-feature-discovery/source/panic_fake"
 	"github.com/kubernetes-incubator/node-feature-discovery/source/pci"
 	"github.com/kubernetes-incubator/node-feature-discovery/source/pstate"
@@ -167,7 +168,7 @@ func argsParse(argv []string) (args Args) {
                               will override settings read from the config file.
                               [Default: ]
   --sources=<sources>         Comma separated list of feature sources.
-                              [Default: cpu,cpuid,iommu,kernel,memory,network,pci,pstate,rdt,selinux,storage]
+                              [Default: cpu,cpuid,iommu,kernel,memory,network,os,pci,pstate,rdt,selinux,storage]
   --no-publish                Do not publish discovered features to the
                               cluster-local Kubernetes API server.
   --label-whitelist=<pattern> Regular expression to filter label names to
@@ -249,6 +250,7 @@ func configureParameters(sourcesWhiteList []string, labelWhiteListStr string) (e
 		kernel.Source{},
 		memory.Source{},
 		network.Source{},
+		os_features.Source{},
 		panic_fake.Source{},
 		pci.Source{},
 		pstate.Source{},

@@ -54,7 +54,7 @@ node-feature-discovery.
                               will override settings read from the config file.
                               [Default: ]
   --sources=<sources>         Comma separated list of feature sources.
-                              [Default: cpu,cpuid,iommu,kernel,memory,network,pci,pstate,rdt,selinux,storage]
+                              [Default: cpu,cpuid,iommu,kernel,memory,network,os,pci,pstate,rdt,selinux,storage]
   --no-publish                Do not publish discovered features to the
                               cluster-local Kubernetes API server.
   --label-whitelist=<pattern> Regular expression to filter label names to
@@ -83,6 +83,7 @@ The current set of feature sources are the following:
 - Kernel
 - Memory
 - Network
+- OS
 - Pstate ([Intel P-State driver][intel-pstate])
 - RDT ([Intel Resource Director Technology][intel-rdt])
 - Selinux
@@ -120,6 +121,7 @@ the only label value published for features is the string `"true"`._
   "node.alpha.kubernetes-incubator.io/nfd-kernel-version.<version component>": "<version number>",
   "node.alpha.kubernetes-incubator.io/nfd-memory-<feature-name>": "true",
   "node.alpha.kubernetes-incubator.io/nfd-network-<feature-name>": "true",
+  "node.alpha.kubernetes-incubator.io/nfd-os-<feature name>": "<feature value>",
   "node.alpha.kubernetes-incubator.io/nfd-pci-<device label>.present": "true",
   "node.alpha.kubernetes-incubator.io/nfd-pstate-<feature-name>": "true",
   "node.alpha.kubernetes-incubator.io/nfd-rdt-<feature-name>": "true",
@@ -202,6 +204,13 @@ not enabled) as reported by the `cpuid` instruction.
 | ------- | ---------- | ----------------------------------------------------- |
 | sriov   | capable    | [Single Root Input/Output Virtualization][sriov] (SR-IOV) enabled Network Interface Card(s) present
 | <br>    | configured | SR-IOV virtual functions have been configured
+
+### OS Features
+
+| Feature | Attribute  | Description                                           |
+| ------- | ---------- | ----------------------------------------------------- |
+| release | ID         | Operating system identifier
+| <br>    | VERSION_ID | Operating system version identifier
 
 ### PCI Features
 

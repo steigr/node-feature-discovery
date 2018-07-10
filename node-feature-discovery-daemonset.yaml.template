@@ -26,9 +26,15 @@ spec:
           args:
             - "--sleep-interval=60s"
           volumeMounts:
+            - name: host-os-release
+              mountPath: "/host-etc/os-release"
+              readOnly: true
             - name: host-sys
               mountPath: "/host-sys"
       volumes:
+        - name: host-os-release
+          hostPath:
+            path: "/etc/os-release"
         - name: host-sys
           hostPath:
             path: "/sys"
