@@ -193,6 +193,7 @@ not enabled) as reported by the `cpuid` instruction.
 
 | Feature name   | Description                                                                         |
 | :------------: | :---------------------------------------------------------------------------------: |
+| die_clustering | Intel Cluster-on-Die or sub-NUMA clustering technology enabled
 | numa           | Multiple memory nodes i.e. NUMA architecture detected
 
 ### Network Features
