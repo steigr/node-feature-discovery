@@ -12,6 +12,7 @@ import (
 	"github.com/docopt/docopt-go"
 	"github.com/ghodss/yaml"
 	"github.com/kubernetes-incubator/node-feature-discovery/source"
+	"github.com/kubernetes-incubator/node-feature-discovery/source/cpu"
 	"github.com/kubernetes-incubator/node-feature-discovery/source/cpuid"
 	"github.com/kubernetes-incubator/node-feature-discovery/source/fake"
 	"github.com/kubernetes-incubator/node-feature-discovery/source/iommu"
@@ -166,7 +167,7 @@ func argsParse(argv []string) (args Args) {
                               will override settings read from the config file.
                               [Default: ]
   --sources=<sources>         Comma separated list of feature sources.
-                              [Default: cpuid,iommu,kernel,memory,network,pci,pstate,rdt,selinux,storage]
+                              [Default: cpu,cpuid,iommu,kernel,memory,network,pci,pstate,rdt,selinux,storage]
   --no-publish                Do not publish discovered features to the
                               cluster-local Kubernetes API server.
   --label-whitelist=<pattern> Regular expression to filter label names to
@@ -241,6 +242,7 @@ func configureParameters(sourcesWhiteList []string, labelWhiteListStr string) (e
 
 	// Configure feature sources.
 	allSources := []source.FeatureSource{
+		cpu.Source{},
 		cpuid.Source{},
 		fake.Source{},
 		iommu.Source{},
