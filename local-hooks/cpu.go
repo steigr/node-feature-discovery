@@ -30,13 +30,26 @@ const (
 	// MSR numbers needed by us
 	MSR_PKG_CST_CONFIG_CONTROL = 0x0E2
 	MSR_RAPL_POWER_UNIT        = 0x606
+	MSR_PKG_POWER_LIMIT        = 0x610
 	MSR_PKG_POWER_INFO         = 0x614
 
 	// Bit masks for the MSRs
-	PKG_CST_CONFIG_CONTROL_LIMIT      = 0x0007 // Bits 0-2
-	RAPL_POWER_UNIT_POWER_UNITS       = 0x0007 // Bits 0-2
-	PKG_POWER_INFO_THERMAL_SPEC_POWER = 0x7FFF // Bits 0-14
+	PKG_CST_CONFIG_CONTROL_LIMIT      = 0x0007         // Bits 0-2
+	RAPL_POWER_UNIT_POWER_UNITS       = 0x0007         // Bits 0-2
+	PKG_POWER_INFO_THERMAL_SPEC_POWER = 0x7FFF         // Bits 0-14
+	PKG_POWER_LIMIT_L1                = 0x7FFF         // Bits 0-14
+	PKG_POWER_LIMIT_L1_ENABLED        = 0x8000         // Bit  15
+	PKG_POWER_LIMIT_L2                = 0x7FFF00000000 // Bits 32-46
+	PKG_POWER_LIMIT_L2_ENABLED        = 0x800000000000 // Bit  47
 )
+
+type powerInfo struct {
+	thermalSpecPower   []uint64
+	powerLimit1        []uint64
+	powerLimit1Enabled []bool
+	powerLimit2        []uint64
+	powerLimit2Enabled []bool
+}
 
 var logger = log.New(os.Stderr, "", log.LstdFlags)
 
@@ -61,17 +74,35 @@ func main() {
 		packageCpus = append(packageCpus, packageCpuList[0])
 	}
 
-	// Detect TDP
-	tdps, err := thermalSpecPower(packageCpus)
+	// Detect TDP and power limits
+	pInfo, err := getPowerInfo(packageCpus)
 	if err != nil {
-		logger.Printf("Failed to detect TDP: %s", err)
+		logger.Printf("Failed to read CPU power info: %s", err)
 	} else {
-		if len(tdps) > 1 {
-			fmt.Printf("CPUs having different TDPs found, skipping 'tdp' label")
+		if len(pInfo.thermalSpecPower) == 1 {
+			fmt.Printf("tdp=%v\n", pInfo.thermalSpecPower[0])
 		} else {
-			for tdp := range tdps {
-				fmt.Printf("tdp=%v\n", tdp)
+			logger.Printf("CPUs having different TDPs found, skipping 'tdp' label")
+		}
+
+		if len(pInfo.powerLimit1) == 1 && len(pInfo.powerLimit1Enabled) == 1 {
+			if pInfo.powerLimit1Enabled[0] == true {
+				fmt.Printf("power-limit-1=%v\n", pInfo.powerLimit1[0])
+			} else {
+				logger.Printf("CPU power limit 1 disabled")
 			}
+		} else {
+			logger.Printf("CPUs with differing power limit 1 settings found, skipping 'power-limit-1' label")
+		}
+
+		if len(pInfo.powerLimit2) == 1 && len(pInfo.powerLimit2Enabled) == 1 {
+			if pInfo.powerLimit2Enabled[0] == true {
+				fmt.Printf("power-limit-2=%v\n", pInfo.powerLimit2[0])
+			} else {
+				logger.Printf("CPU power limit 2 disabled")
+			}
+		} else {
+			logger.Printf("CPUs with differing power limit 2 settings found, skipping 'power-limit-2' label")
 		}
 	}
 
@@ -148,15 +179,15 @@ func readMsr(cpu string, msr int64) (uint64, error) {
 	return binary.LittleEndian.Uint64(buf), nil
 }
 
-// Read TDP (Thermal Spec Power) of multiple CPUs
-func thermalSpecPower(cpus []string) (map[uint64][]string, error) {
-	tdp := map[uint64][]string{}
+// Read power info of multiple CPUs
+func getPowerInfo(cpus []string) (powerInfo, error) {
+	pInfo := powerInfo{}
 
 	for _, cpu := range cpus {
 		// Read power units
 		unitsRaw, err := readMsr(cpu, MSR_RAPL_POWER_UNIT)
 		if err != nil {
-			return nil, err
+			return pInfo, err
 		}
 		unitsRaw = unitsRaw & RAPL_POWER_UNIT_POWER_UNITS
 		units := 1 / float64((uint64(1) << unitsRaw))
@@ -164,15 +195,59 @@ func thermalSpecPower(cpus []string) (map[uint64][]string, error) {
 		// Calculate thermal spec power
 		powerRaw, err := readMsr(cpu, MSR_PKG_POWER_INFO)
 		if err != nil {
-			return nil, err
+			return pInfo, err
 		}
 		powerRaw = powerRaw & PKG_POWER_INFO_THERMAL_SPEC_POWER
 
 		watts := uint64(float64(powerRaw) * units)
-		tdp[watts] = append(tdp[watts], cpu)
+		if len(pInfo.thermalSpecPower) == 0 || pInfo.thermalSpecPower[0] != watts {
+			// We're only interested in the uniqueness of values, thus stupidly
+			// pushing values into the array
+			pInfo.thermalSpecPower = append(pInfo.thermalSpecPower, watts)
+		}
+
+		// Read power limit MSR
+		powerLimitRaw, err := readMsr(cpu, MSR_PKG_POWER_LIMIT)
+		if err != nil {
+			return pInfo, err
+		}
+
+		// Get power limit 1
+		enabled := false
+		if (powerLimitRaw & PKG_POWER_LIMIT_L1_ENABLED) > 0 {
+			enabled = true
+		}
+		if len(pInfo.powerLimit1Enabled) == 0 || pInfo.powerLimit1Enabled[0] != enabled {
+			// Dummy uniqueness trick
+			pInfo.powerLimit1Enabled = append(pInfo.powerLimit1Enabled, enabled)
+		}
+
+		powerRaw = powerLimitRaw & PKG_POWER_LIMIT_L1
+		watts = uint64(float64(powerRaw) * units)
+		if len(pInfo.powerLimit1) == 0 || pInfo.powerLimit1[0] != watts {
+			// Dummy uniqueness trick
+			pInfo.powerLimit1 = append(pInfo.powerLimit1, watts)
+		}
+
+		// Get power limit 2
+		enabled = false
+		if (powerLimitRaw & PKG_POWER_LIMIT_L2_ENABLED) > 0 {
+			enabled = true
+		}
+		if len(pInfo.powerLimit2Enabled) == 0 || pInfo.powerLimit2Enabled[0] != enabled {
+			// Dummy uniqueness trick
+			pInfo.powerLimit2Enabled = append(pInfo.powerLimit2Enabled, enabled)
+		}
+
+		powerRaw = (powerLimitRaw & PKG_POWER_LIMIT_L2) >> 32
+		watts = uint64(float64(powerRaw) * units)
+		if len(pInfo.powerLimit2) == 0 || pInfo.powerLimit2[0] != watts {
+			// Dummy uniqueness trick
+			pInfo.powerLimit2 = append(pInfo.powerLimit2, watts)
+		}
 	}
 
-	return tdp, nil
+	return pInfo, nil
 }
 
 // Tell if all CPUs have C-state disabled
