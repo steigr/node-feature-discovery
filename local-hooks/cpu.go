@@ -28,10 +28,12 @@ import (
 
 const (
 	// MSR numbers needed by us
-	MSR_RAPL_POWER_UNIT = 0x606
-	MSR_PKG_POWER_INFO  = 0x614
+	MSR_PKG_CST_CONFIG_CONTROL = 0x0E2
+	MSR_RAPL_POWER_UNIT        = 0x606
+	MSR_PKG_POWER_INFO         = 0x614
 
 	// Bit masks for the MSRs
+	PKG_CST_CONFIG_CONTROL_LIMIT      = 0x0007 // Bits 0-2
 	RAPL_POWER_UNIT_POWER_UNITS       = 0x0007 // Bits 0-2
 	PKG_POWER_INFO_THERMAL_SPEC_POWER = 0x7FFF // Bits 0-14
 )
@@ -71,6 +73,14 @@ func main() {
 				fmt.Printf("tdp=%v\n", tdp)
 			}
 		}
+	}
+
+	// Detect C-state setting
+	disabled, err := cstateDisabled(cpus)
+	if err != nil {
+		logger.Printf("Failed to detect C-state: %s", err)
+	} else if disabled {
+		fmt.Print("cstate-disabled\n")
 	}
 }
 
@@ -163,4 +173,18 @@ func thermalSpecPower(cpus []string) (map[uint64][]string, error) {
 	}
 
 	return tdp, nil
+}
+
+// Tell if all CPUs have C-state disabled
+func cstateDisabled(cpus []string) (bool, error) {
+	for _, cpu := range cpus {
+		limit, err := readMsr(cpu, MSR_PKG_CST_CONFIG_CONTROL)
+		if err != nil {
+			return false, err
+		}
+		if limit&PKG_CST_CONFIG_CONTROL_LIMIT > 0 {
+			return false, nil
+		}
+	}
+	return true, nil
 }
