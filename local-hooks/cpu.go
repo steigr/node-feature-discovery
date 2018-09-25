@@ -32,6 +32,7 @@ const (
 	MSR_RAPL_POWER_UNIT        = 0x606
 	MSR_PKG_POWER_LIMIT        = 0x610
 	MSR_PKG_POWER_INFO         = 0x614
+	MSR_UNCORE_RATIO_LIMIT     = 0x620
 
 	// Bit masks for the MSRs
 	PKG_CST_CONFIG_CONTROL_LIMIT      = 0x0007         // Bits 0-2
@@ -41,6 +42,11 @@ const (
 	PKG_POWER_LIMIT_L1_ENABLED        = 0x8000         // Bit  15
 	PKG_POWER_LIMIT_L2                = 0x7FFF00000000 // Bits 32-46
 	PKG_POWER_LIMIT_L2_ENABLED        = 0x800000000000 // Bit  47
+	UNCORE_RATIO_LIMIT_MAX            = 0x007F         // Bits 0-6
+	UNCORE_RATIO_LIMIT_MIN            = 0x7F00         // Bits 8-14
+
+	// Misc consts
+	BASE_CLK_MHZ = 100
 )
 
 type powerInfo struct {
@@ -49,6 +55,11 @@ type powerInfo struct {
 	powerLimit1Enabled []bool
 	powerLimit2        []uint64
 	powerLimit2Enabled []bool
+}
+
+type uncoreInfo struct {
+	minRatio []uint64
+	maxRatio []uint64
 }
 
 var logger = log.New(os.Stderr, "", log.LstdFlags)
@@ -112,6 +123,24 @@ func main() {
 		logger.Printf("Failed to detect C-state: %s", err)
 	} else if disabled {
 		fmt.Print("cstate-disabled\n")
+	}
+
+	// Detect uncore configuration
+	uInfo, err := getUncoreInfo(packageCpus)
+	if err != nil {
+		logger.Printf("Failed to read uncore configuration info: %s", err)
+	} else {
+		if len(uInfo.minRatio) == 1 {
+			fmt.Printf("uncore-min-frequency=%v\n", BASE_CLK_MHZ*uInfo.minRatio[0])
+		} else {
+			logger.Printf("Non-identical uncore min ratio settings detected, skipping 'uncore-min-frequency' label")
+		}
+
+		if len(uInfo.maxRatio) == 1 {
+			fmt.Printf("uncore-max-frequency=%v\n", BASE_CLK_MHZ*uInfo.maxRatio[0])
+		} else {
+			logger.Printf("Non-identical uncore max ratio settings detected, skipping 'uncore-max-frequency' label")
+		}
 	}
 }
 
@@ -262,4 +291,33 @@ func cstateDisabled(cpus []string) (bool, error) {
 		}
 	}
 	return true, nil
+}
+
+// Get uncore configuration information
+func getUncoreInfo(cpus []string) (uncoreInfo, error) {
+	uInfo := uncoreInfo{}
+
+	for _, cpu := range cpus {
+		ratioRaw, err := readMsr(cpu, MSR_UNCORE_RATIO_LIMIT)
+		if err != nil {
+			return uInfo, err
+		}
+
+		// Get min ratio
+		ratio := (ratioRaw & UNCORE_RATIO_LIMIT_MIN) >> 8
+
+		if len(uInfo.minRatio) == 0 || uInfo.minRatio[0] != ratio {
+			// We're only interested if all values are identical, i.e. if len == 1
+			uInfo.minRatio = append(uInfo.minRatio, ratio)
+		}
+
+		// Get max ratio
+		ratio = ratioRaw & UNCORE_RATIO_LIMIT_MAX
+
+		if len(uInfo.maxRatio) == 0 || uInfo.maxRatio[0] != ratio {
+			// We're only interested if all values are identical
+			uInfo.maxRatio = append(uInfo.maxRatio, ratio)
+		}
+	}
+	return uInfo, nil
 }
