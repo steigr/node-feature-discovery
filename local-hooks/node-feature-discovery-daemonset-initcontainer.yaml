@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: node-feature-discovery
+  name: node-feature-discovery
+spec:
+  selector:
+    matchLabels:
+      app: node-feature-discovery
+  template:
+    metadata:
+      labels:
+        app: node-feature-discovery
+    spec:
+      hostNetwork: true
+      serviceAccount: node-feature-discovery
+      initContainers:
+      - image: <INIT_CONTAINER_IMAGE_DOCKER_TAG>
+        imagePullPolicy: Always
+        name: install-nfd-hooks
+        command: ["cp", "/cpu", "/mnt/nfd-hooks"]
+        volumeMounts:
+        - name: nfd-hooks
+          mountPath: "/mnt/nfd-hooks"
+      containers:
+      - env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        securityContext:
+          privileged: true
+        image: <NFD_IMAGE_DOCKER_TAG>
+        name: node-feature-discovery
+        args:
+        - "--sleep-interval=60s"
+        volumeMounts:
+        - name: host-boot
+          mountPath: "/boot"
+          readOnly: true
+        - name: host-sys
+          mountPath: "/host-sys"
+        - name: host-devcpu
+          mountPath: "/dev/cpu"
+        - name: host-os-release
+          mountPath: "/host-etc/os-release"
+          readOnly: true
+        - name: nfd-hooks
+          mountPath: "/etc/kubernetes/node-feature-discovery/source.d"
+          readOnly: true
+      volumes:
+      - name: host-boot
+        hostPath:
+          path: "/boot"
+      - name: host-sys
+        hostPath:
+          path: "/sys"
+      - name: host-devcpu
+        hostPath:
+          path: "/dev/cpu"
+      - name: host-os-release
+        hostPath:
+          path: "/etc/os-release"
+      - name: nfd-hooks
+        emptyDir: {}
