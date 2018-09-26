@@ -21,6 +21,8 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
+          securityContext:
+            privileged: true
           image: quay.io/kubernetes_incubator/node-feature-discovery:v0.3.0
           name: node-feature-discovery
           args:
@@ -28,6 +30,9 @@ spec:
           volumeMounts:
             - name: host-boot
               mountPath: "/host-boot"
+            - name: host-devcpu
+              mountPath: "/dev/cpu"
+              readOnly: true
               readOnly: true
             - name: host-os-release
               mountPath: "/host-etc/os-release"
@@ -38,6 +43,9 @@ spec:
         - name: host-boot
           hostPath:
             path: "/boot"
+        - name: host-devcpu
+          hostPath:
+            path: "/dev/cpu"
         - name: host-os-release
           hostPath:
             path: "/etc/os-release"
