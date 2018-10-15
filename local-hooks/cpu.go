@@ -29,21 +29,23 @@ import (
 const (
 	// MSR numbers needed by us
 	MSR_PKG_CST_CONFIG_CONTROL = 0x0E2
+	MSR_POWER_CTL              = 0x1FC
 	MSR_RAPL_POWER_UNIT        = 0x606
 	MSR_PKG_POWER_LIMIT        = 0x610
 	MSR_PKG_POWER_INFO         = 0x614
 	MSR_UNCORE_RATIO_LIMIT     = 0x620
 
 	// Bit masks for the MSRs
-	PKG_CST_CONFIG_CONTROL_LIMIT      = 0x0007         // Bits 0-2
-	RAPL_POWER_UNIT_POWER_UNITS       = 0x0007         // Bits 0-2
-	PKG_POWER_INFO_THERMAL_SPEC_POWER = 0x7FFF         // Bits 0-14
-	PKG_POWER_LIMIT_L1                = 0x7FFF         // Bits 0-14
-	PKG_POWER_LIMIT_L1_ENABLED        = 0x8000         // Bit  15
-	PKG_POWER_LIMIT_L2                = 0x7FFF00000000 // Bits 32-46
-	PKG_POWER_LIMIT_L2_ENABLED        = 0x800000000000 // Bit  47
-	UNCORE_RATIO_LIMIT_MAX            = 0x007F         // Bits 0-6
-	UNCORE_RATIO_LIMIT_MIN            = 0x7F00         // Bits 8-14
+	PKG_CST_CONFIG_CONTROL_LIMIT       = 0x0007         // Bits 0-2
+	POWER_CTL_DISABLE_RACE_TO_HALT_OPT = 0x80000        // Bit  19
+	RAPL_POWER_UNIT_POWER_UNITS        = 0x0007         // Bits 0-2
+	PKG_POWER_INFO_THERMAL_SPEC_POWER  = 0x7FFF         // Bits 0-14
+	PKG_POWER_LIMIT_L1                 = 0x7FFF         // Bits 0-14
+	PKG_POWER_LIMIT_L1_ENABLED         = 0x8000         // Bit  15
+	PKG_POWER_LIMIT_L2                 = 0x7FFF00000000 // Bits 32-46
+	PKG_POWER_LIMIT_L2_ENABLED         = 0x800000000000 // Bit  47
+	UNCORE_RATIO_LIMIT_MAX             = 0x007F         // Bits 0-6
+	UNCORE_RATIO_LIMIT_MIN             = 0x7F00         // Bits 8-14
 
 	// Misc consts
 	BASE_CLK_MHZ = 100
@@ -141,6 +143,14 @@ func main() {
 		} else {
 			logger.Printf("Non-identical uncore max ratio settings detected, skipping 'uncore-max-frequency' label")
 		}
+	}
+
+	// Detect EET setting
+	disabled, err = rthoDisabled(packageCpus)
+	if err != nil {
+		logger.Printf("Failed to detect 'race to halt optimization' setting: %s", err)
+	} else if disabled {
+		fmt.Print("eet-disabled\n")
 	}
 }
 
@@ -320,4 +330,18 @@ func getUncoreInfo(cpus []string) (uncoreInfo, error) {
 		}
 	}
 	return uInfo, nil
+}
+
+// Get "race to halt optimization" disabled status
+func rthoDisabled(cpus []string) (bool, error) {
+	for _, cpu := range cpus {
+		disabled, err := readMsr(cpu, MSR_POWER_CTL)
+		if err != nil {
+			return false, err
+		}
+		if disabled&POWER_CTL_DISABLE_RACE_TO_HALT_OPT == 0 {
+			return false, nil
+		}
+	}
+	return true, nil
 }
