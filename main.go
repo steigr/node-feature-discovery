@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docopt/docopt-go"
+	docopt "github.com/docopt/docopt-go"
 	"github.com/ghodss/yaml"
 	"github.com/kubernetes-incubator/node-feature-discovery/source"
 	"github.com/kubernetes-incubator/node-feature-discovery/source/cpu"
@@ -24,6 +24,7 @@ import (
 	"github.com/kubernetes-incubator/node-feature-discovery/source/panic_fake"
 	"github.com/kubernetes-incubator/node-feature-discovery/source/pci"
 	"github.com/kubernetes-incubator/node-feature-discovery/source/pstate"
+	"github.com/kubernetes-incubator/node-feature-discovery/source/rapl"
 	"github.com/kubernetes-incubator/node-feature-discovery/source/rdt"
 	"github.com/kubernetes-incubator/node-feature-discovery/source/selinux"
 	"github.com/kubernetes-incubator/node-feature-discovery/source/storage"
@@ -171,7 +172,7 @@ func argsParse(argv []string) (args Args) {
                               will override settings read from the config file.
                               [Default: ]
   --sources=<sources>         Comma separated list of feature sources.
-                              [Default: cpu,cpuid,iommu,kernel,local,memory,network,os,pci,pstate,rdt,selinux,storage]
+                              [Default: cpu,cpuid,iommu,kernel,local,memory,network,os,pci,pstate,rapl,rdt,selinux,storage]
   --no-publish                Do not publish discovered features to the
                               cluster-local Kubernetes API server.
   --label-whitelist=<pattern> Regular expression to filter label names to
@@ -259,6 +260,7 @@ func configureParameters(sourcesWhiteList []string, labelWhiteListStr string) (e
 		panic_fake.Source{},
 		pci.Source{},
 		pstate.Source{},
+		rapl.Source{},
 		rdt.Source{},
 		selinux.Source{},
 		storage.Source{},
