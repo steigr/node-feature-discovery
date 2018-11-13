@@ -1,13 +1,13 @@
 # Build node feature discovery
 FROM golang:1.8 as builder
 
-ADD . /go/src/github.com/kubernetes-incubator/node-feature-discovery
+RUN go get github.com/Masterminds/glide
 
 WORKDIR /go/src/github.com/kubernetes-incubator/node-feature-discovery
 
 ENV CMT_CAT_VERSION="v1.2.0"
 
-ARG NFD_VERSION
+ADD rdt-discovery /go/src/github.com/kubernetes-incubator/node-feature-discovery/rdt-discovery
 
 RUN case $(dpkg --print-architecture) in \
         arm64) \
@@ -21,8 +21,15 @@ RUN case $(dpkg --print-architecture) in \
                 ;; \
         esac
 
-RUN go get github.com/Masterminds/glide
+ADD glide.lock /go/src/github.com/kubernetes-incubator/node-feature-discovery/glide.lock
+ADD glide.yaml /go/src/github.com/kubernetes-incubator/node-feature-discovery/glide.yaml
+
 RUN glide install --strip-vendor
+
+ADD . /go/src/github.com/kubernetes-incubator/node-feature-discovery
+
+ARG NFD_VERSION
+
 RUN go install \
   -ldflags "-s -w -X main.version=$NFD_VERSION" \
   github.com/kubernetes-incubator/node-feature-discovery
